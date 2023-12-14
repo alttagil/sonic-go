@@ -161,3 +161,13 @@ func (stream *Stream) ReadTo(s []int16) ([]int16, error) {
 
 	return s, nil
 }
+
+// NumInputSamples returns number of samples in input buffer
+func (stream *Stream) NumInputSamples() int {
+	return stream.inputBuffer.Len()
+}
+
+// NumOutputSamples returns number of samples in output buffer
+func (stream *Stream) NumOutputSamples() int {
+	return stream.outputBuffer.Len()
+}
