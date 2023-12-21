@@ -227,9 +227,6 @@ type Stream struct {
 	// maxRequired is the maximum required size of the pitch buffer.
 	maxRequired int
 
-	// remainingInputToCopy is the number of input samples yet to be copied.
-	remainingInputToCopy int
-
 	// sampleRate is the audio sample rate.
 	sampleRate int
 

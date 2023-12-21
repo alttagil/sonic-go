@@ -171,3 +171,17 @@ func (stream *Stream) NumInputSamples() int {
 func (stream *Stream) NumOutputSamples() int {
 	return stream.outputBuffer.Len()
 }
+
+// Reset instantly resets internal state and clears all buffers
+func (stream *Stream) Reset() {
+	stream.prevPeriod = 0
+	stream.oldRatePosition = 0
+	stream.newRatePosition = 0
+	stream.timeError = 0
+	stream.inputPlaytime = 0
+
+	stream.inputBuffer.Reset()
+	stream.outputBuffer.Reset()
+	stream.downSampleBuffer.Reset()
+	stream.pitchBuffer.Reset()
+}
