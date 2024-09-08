@@ -46,6 +46,16 @@ func NewSampleBuffer(ch, capacity int) *SampleBuffer {
 	}
 }
 
+// RawSlice (EXPERIMENTAL) returns slice from a buffer without counter changes
+func (b *SampleBuffer) RawSlice(n int) []int16 {
+	return b.Buffer.RawSlice(n * b.ch)
+}
+
+// RawLenAdd (EXPERIMENTAL) changes internal counters as if n samples were added to a buffer
+func (b *SampleBuffer) RawLenAdd(n int) error {
+	return b.Buffer.RawLenAdd(n * b.ch)
+}
+
 // Channels returns the number of channels in the SampleBuffer.
 func (b *SampleBuffer) Channels() int {
 	return b.ch
