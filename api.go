@@ -226,20 +226,16 @@ func (stream *Stream) StreamProcess(size int, f func(buf []int16) error) ([]int1
 	if err := f(tempAudioBuf); err != nil {
 		return nil, fmt.Errorf("function call: %w", err)
 	}
-
 	if err := stream.StreamReturnRawSlice(tempAudioBuf); err != nil {
 		return nil, fmt.Errorf("buffer return: %w", err)
 	}
 
-	if stream.StreamSamplesAvailable() >= size {
-		data, err := stream.StreamRead(size)
-		if err != nil {
-			return nil, fmt.Errorf("stream reading: %w", err)
-		}
-		return data, nil
+	data, err := stream.StreamRead(size)
+	if err != nil {
+		return nil, fmt.Errorf("stream reading: %w", err)
 	}
 
-	return nil, nil
+	return data, nil
 }
 
 // StreamRead (EXPERIMENTAL) returns slice directly from input buffer if there is no any audio changes were expected (no speed, pitch or volume changes)
@@ -301,18 +297,4 @@ func (stream *Stream) StreamReadTo(s []int16) ([]int16, error) {
 	copy(s, data)
 
 	return s, nil
-}
-
-// StreamSamplesAvailable (EXPERIMENTAL)  returns count of samples available
-func (stream *Stream) StreamSamplesAvailable() int {
-	iLen := stream.inputBuffer.Len()
-	oLen := stream.outputBuffer.Len()
-	rate := stream.rate * stream.pitch
-	speed := float64(iLen) * stream.samplePeriod / stream.inputPlaytime
-
-	if speed > 0.99999 && speed < 1.00001 && rate == 1 && stream.volume == 1.0 {
-		return max(iLen, oLen)
-	}
-
-	return oLen
 }
