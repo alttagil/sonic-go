@@ -14,6 +14,10 @@
 
 package sonic
 
+import (
+	"fmt"
+)
+
 // ChangeSpeed modifies the speed, pitch, rate, and volume of the provided int16 samples.
 // It returns the modified int16 samples and any encountered error.
 func ChangeSpeed(sampleRate, numChannels int, speed, pitch, rate, volume float64, samples []int16) ([]int16, error) {
@@ -203,9 +207,9 @@ func (stream *Stream) StreamBorrowRawSlice(n int) []int16 {
 	return stream.inputBuffer.RawSlice(n)
 }
 
-// StreamReturnRawSlice (EXPERIMENTAL) assumes that len(s) bytes are filled with audio data and adds up internal counters  
+// StreamReturnRawSlice (EXPERIMENTAL) assumes that len(s) bytes are filled with audio data and adds up internal counters
 // to include audio data from s into internal buffer space.
-// This function should be called right after corresponding StreamBorrowRawSlice. You can't borrow several slices and then 
+// This function should be called right after corresponding StreamBorrowRawSlice. You can't borrow several slices and then
 // return it in bulk manner
 func (stream *Stream) StreamReturnRawSlice(s []int16) error {
 	n := len(s) / stream.numChannels
@@ -216,53 +220,80 @@ func (stream *Stream) StreamReturnRawSlice(s []int16) error {
 	return nil
 }
 
+func (stream *Stream) StreamProcess(size int, f func(buf []int16) error) ([]int16, error) {
+	tempAudioBuf := stream.StreamBorrowRawSlice(size)
+
+	if err := f(tempAudioBuf); err != nil {
+		return nil, fmt.Errorf("function call: %w", err)
+	}
+
+	if err := stream.StreamReturnRawSlice(tempAudioBuf); err != nil {
+		return nil, fmt.Errorf("buffer return: %w", err)
+	}
+
+	if stream.StreamSamplesAvailable() >= size {
+		data, err := stream.StreamRead(size)
+		if err != nil {
+			return nil, fmt.Errorf("stream reading: %w", err)
+		}
+		return data, nil
+	}
+
+	return nil, nil
+}
+
 // StreamRead (EXPERIMENTAL) returns slice directly from input buffer if there is no any audio changes were expected (no speed, pitch or volume changes)
 // Otherwise it works as usual - process ausio from input buffer to output and returns the slice from output buffer.
-func (stream *Stream) StreamRead(s []int16) ([]int16, error) {
-	n := cap(s) / stream.numChannels
+func (stream *Stream) streamRead(s int) ([]int16, error) {
+	var data []int16
+	var err error
+
+	n := s / stream.numChannels
 	if n == 0 {
-		return s[:0], nil
+		return data, err
 	}
 
 	iLen := stream.inputBuffer.Len()
 	oLen := stream.outputBuffer.Len()
 
-	if iLen < n && oLen < n {
-		return s[:0], nil
-	}
-
 	rate := stream.rate * stream.pitch
 	speed := float64(iLen) * stream.samplePeriod / stream.inputPlaytime
 
-	var data []int16
-	var err error
-
 	if speed > 0.99999 && speed < 1.00001 && rate == 1 && stream.volume == 1.0 {
-		switch {
-		case oLen == 0:
-			data, err = stream.inputBuffer.ReadSlice(n)
-			stream.inputPlaytime = float64(stream.inputSamplesLen()) * stream.samplePeriod / (stream.speed / stream.pitch)
-		case oLen >= n:
-			data, err = stream.outputBuffer.ReadSlice(n)
-		default:
-			if iLen < oLen {
-				return s[:0], nil
+		if iLen >= n || oLen >= n {
+			switch {
+			case oLen == 0:
+				data, err = stream.inputBuffer.ReadSlice(n)
+				stream.inputPlaytime = float64(stream.inputSamplesLen()) * stream.samplePeriod / (stream.speed / stream.pitch)
+			case oLen >= n:
+				data, err = stream.outputBuffer.ReadSlice(n)
+			default:
+				if iLen >= oLen {
+					data, err = stream.inputBuffer.ReadSlice(n)
+					odata, _ := stream.outputBuffer.ReadSlice(n)
+					crossFade(data, odata)
+
+					stream.inputPlaytime = float64(stream.inputSamplesLen()) * stream.samplePeriod / (stream.speed / stream.pitch)
+				}
 			}
-
-			data, err = stream.inputBuffer.ReadSlice(n)
-			odata, _ := stream.outputBuffer.ReadSlice(n)
-			crossFade(data, odata)
-
-			stream.inputPlaytime = float64(stream.inputSamplesLen()) * stream.samplePeriod / (stream.speed / stream.pitch)
 		}
 	} else {
 		if err := stream.processStreamInput(); err != nil {
-			return s[:0], err
-		} else {
+			return nil, err
+		} else if stream.outputBuffer.Len() >= n {
 			data, err = stream.outputBuffer.ReadSlice(n)
 		}
 	}
 
+	return data, err
+}
+
+func (stream *Stream) StreamRead(s int) ([]int16, error) {
+	return stream.streamRead(s)
+}
+
+func (stream *Stream) StreamReadTo(s []int16) ([]int16, error) {
+	data, err := stream.streamRead(cap(s))
 	if err != nil {
 		return s[:0], err
 	}
