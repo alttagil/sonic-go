@@ -163,8 +163,8 @@ var SincTable = [SincTableSize]int{
 	-19, -17, -14, -12, -10, -9, -7, -6, -4, -3, -2, -2, -1, -1, 0, 0, 0, 0, 0, 0, 0,
 }
 
-// Stream represents the internal structure of a Sonic stream.
-type Stream struct {
+// Sonic represents the internal structure of a Sonic stream.
+type Sonic struct {
 	// inputBuffer holds the input samples.
 	inputBuffer *SampleBuffer
 
@@ -237,8 +237,8 @@ type Stream struct {
 	prevMinDiff int
 }
 
-// NewSonicStream creates a new sonic Stream.
-func NewSonicStream(sampleRate, numChannels int) *Stream {
+// NewSonicStream creates a new sonic Sonic.
+func NewSonic(sampleRate, numChannels int) *Sonic {
 	minPeriod := sampleRate / MaxPitch
 	maxPeriod := sampleRate / MinPitch
 	maxRequired := 2 * maxPeriod
@@ -251,7 +251,7 @@ func NewSonicStream(sampleRate, numChannels int) *Stream {
 	}
 	downSamplerBufferSize := (maxRequired + skip - 1) / skip
 
-	stream := &Stream{
+	stream := &Sonic{
 		sampleRate:       sampleRate,
 		numChannels:      numChannels,
 		minPeriod:        minPeriod,
@@ -277,139 +277,139 @@ func NewSonicStream(sampleRate, numChannels int) *Stream {
 }
 
 // GetSpeed returns the speed of the stream.
-func (stream *Stream) GetSpeed() float64 {
-	return stream.speed
+func (s *Sonic) GetSpeed() float64 {
+	return s.speed
 }
 
 // SetSpeed sets the speed of the stream.
-func (stream *Stream) SetSpeed(speed float64) {
-	stream.speed = speed
+func (s *Sonic) SetSpeed(speed float64) {
+	s.speed = speed
 }
 
 // GetVolume returns the scaling factor of the stream.
-func (stream *Stream) GetVolume() float64 {
-	return stream.volume
+func (s *Sonic) GetVolume() float64 {
+	return s.volume
 }
 
 // SetVolume sets the volume
-func (stream *Stream) SetVolume(volume float64) {
-	stream.volume = volume
+func (s *Sonic) SetVolume(volume float64) {
+	s.volume = volume
 }
 
 // GetPitch returns the pitch of the stream.
-func (stream *Stream) GetPitch() float64 {
-	return stream.pitch
+func (s *Sonic) GetPitch() float64 {
+	return s.pitch
 }
 
 // SetPitch sets the pitch of the stream.
-func (stream *Stream) SetPitch(pitch float64) {
-	stream.pitch = pitch
+func (s *Sonic) SetPitch(pitch float64) {
+	s.pitch = pitch
 }
 
 // GetRate returns the rate of the stream.
-func (stream *Stream) GetRate() float64 {
-	return stream.rate
+func (s *Sonic) GetRate() float64 {
+	return s.rate
 }
 
 // GetSampleRate returns the sample rate of the stream.
-func (stream *Stream) GetSampleRate() int {
-	return stream.sampleRate
+func (s *Sonic) GetSampleRate() int {
+	return s.sampleRate
 }
 
 // GetNumChannels returns the number of channels of the stream.
-func (stream *Stream) GetNumChannels() int {
-	return stream.numChannels
+func (s *Sonic) GetNumChannels() int {
+	return s.numChannels
 }
 
 // SetRate sets the playback rate of the stream. This scales pitch and speed at the same time.
-func (stream *Stream) SetRate(rate float64) {
-	stream.rate = rate
-	stream.oldRatePosition = 0
-	stream.newRatePosition = 0
+func (s *Sonic) SetRate(rate float64) {
+	s.rate = rate
+	s.oldRatePosition = 0
+	s.newRatePosition = 0
 }
 
 // GetQuality returns the quality setting.
-func (stream *Stream) GetQuality() bool {
-	return stream.quality
+func (s *Sonic) GetQuality() bool {
+	return s.quality
 }
 
 // SetQuality sets the "quality". Default false is virtually as good as true, but very much faster.
-func (stream *Stream) SetQuality(quality bool) {
-	stream.quality = quality
+func (s *Sonic) SetQuality(quality bool) {
+	s.quality = quality
 }
 
 // computeSkip computes the number of samples to skip to down-sample the input.
-func (stream *Stream) computeSkip() int {
+func (s *Sonic) computeSkip() int {
 	skip := 1
-	if stream.sampleRate > AmdfFreq && !stream.quality {
-		skip = stream.sampleRate / AmdfFreq
+	if s.sampleRate > AmdfFreq && !s.quality {
+		skip = s.sampleRate / AmdfFreq
 	}
 	return skip
 }
 
 // inputSamplesLen is a helper function returning an inputBuffer len in samples
-func (stream *Stream) inputSamplesLen() int {
-	return stream.inputBuffer.Len()
+func (s *Sonic) inputSamplesLen() int {
+	return s.inputBuffer.Len()
 }
 
 // moveInputToOutput moves all inputBuffer to outputBuffer
-func (stream *Stream) moveInputToOutput() error {
-	stream.inputPlaytime = 0
-	return stream.inputBuffer.MoveAllTo(stream.outputBuffer)
+func (s *Sonic) moveInputToOutput() error {
+	s.inputPlaytime = 0
+	return s.inputBuffer.MoveAllTo(s.outputBuffer)
 }
 
 // moveInputToOutput moves samples sohould be left unmodified from inputBuffer to outputBuffer
-func (stream *Stream) moveUnmodifiedSamples(speed float64) error {
-	inputToCopyFloat := math.Round(1 - stream.timeError*speed/(stream.samplePeriod*(speed-1.0)))
+func (s *Sonic) moveUnmodifiedSamples(speed float64) error {
+	inputToCopyFloat := math.Round(1 - s.timeError*speed/(s.samplePeriod*(speed-1.0)))
 	inputToCopy := int(inputToCopyFloat)
 
 	var err error
-	if inputToCopy > stream.inputBuffer.Len() {
-		inputToCopyFloat = float64(stream.inputBuffer.Len())
-		err = stream.inputBuffer.MoveAllTo(stream.outputBuffer)
+	if inputToCopy > s.inputBuffer.Len() {
+		inputToCopyFloat = float64(s.inputBuffer.Len())
+		err = s.inputBuffer.MoveAllTo(s.outputBuffer)
 	} else {
-		err = stream.inputBuffer.MoveTo(stream.outputBuffer, inputToCopy)
+		err = s.inputBuffer.MoveTo(s.outputBuffer, inputToCopy)
 	}
 
-	stream.timeError += inputToCopyFloat * stream.samplePeriod * (speed - 1.0) / speed
+	s.timeError += inputToCopyFloat * s.samplePeriod * (speed - 1.0) / speed
 	return err
 }
 
 // processStreamInput proccesses inputBuffer sampled changing its speed, rate, pitch, volume
-func (stream *Stream) processStreamInput() error {
-	InputLen := stream.inputBuffer.Len()
+func (s *Sonic) processStreamInput() error {
+	InputLen := s.inputBuffer.Len()
 	if InputLen == 0 {
 		return nil
 	}
 
-	OutputLen := stream.outputBuffer.Len()
+	OutputLen := s.outputBuffer.Len()
 
-	rate := stream.rate * stream.pitch
-	speed := float64(InputLen) * stream.samplePeriod / stream.inputPlaytime
+	rate := s.rate * s.pitch
+	speed := float64(InputLen) * s.samplePeriod / s.inputPlaytime
 
 	if speed > 1.00001 || speed < 0.99999 {
-		if err := stream.changeSpeed(speed); err != nil {
+		if err := s.changeSpeed(speed); err != nil {
 			return err
 		}
 	} else {
-		if err := stream.moveInputToOutput(); err != nil {
+		if err := s.moveInputToOutput(); err != nil {
 			return err
 		}
 	}
 
-	if rate != 1.0 && OutputLen < stream.outputBuffer.Len() {
-		slice, err := stream.outputBuffer.ReadSliceAt(OutputLen)
+	if rate != 1.0 && OutputLen < s.outputBuffer.Len() {
+		slice, err := s.outputBuffer.ReadSliceAt(OutputLen)
 		if err != nil {
 			return err
 		}
-		if err := stream.adjustRate(rate, slice); err != nil {
+		if err := s.adjustRate(rate, slice); err != nil {
 			return err
 		}
 	}
 
-	if stream.volume != 1.0 && OutputLen < stream.outputBuffer.Len() {
-		fixedPointVolume := int(stream.volume * 256.0)
-		if err := stream.outputBuffer.Scale(OutputLen, fixedPointVolume); err != nil {
+	if s.volume != 1.0 && OutputLen < s.outputBuffer.Len() {
+		fixedPointVolume := int(s.volume * 256.0)
+		if err := s.outputBuffer.Scale(OutputLen, fixedPointVolume); err != nil {
 			return err
 		}
 	}
@@ -418,59 +418,59 @@ func (stream *Stream) processStreamInput() error {
 }
 
 // adjustRate adjusts rate of the stream
-func (stream *Stream) adjustRate(rate float64, slice []int16) error {
-	newSampleRate := int(float64(stream.sampleRate) / rate)
-	oldSampleRate := stream.sampleRate
+func (s *Sonic) adjustRate(rate float64, slice []int16) error {
+	newSampleRate := int(float64(s.sampleRate) / rate)
+	oldSampleRate := s.sampleRate
 
 	for newSampleRate > (1<<14) || oldSampleRate > (1<<14) {
 		newSampleRate >>= 1
 		oldSampleRate >>= 1
 	}
-	if err := stream.pitchBuffer.WriteSlice(slice); err != nil {
+	if err := s.pitchBuffer.WriteSlice(slice); err != nil {
 		return err
 	}
 
 	// Leave at least SincFilterPoints pitch sample in the buffer
-	blen := stream.pitchBuffer.Len() - SincFilterPoints
+	blen := s.pitchBuffer.Len() - SincFilterPoints
 	if blen < 1 {
 		return nil
 	}
 
 	for i := 0; i < blen; i++ {
-		for (stream.oldRatePosition+1)*newSampleRate > stream.newRatePosition*oldSampleRate {
-			if err := stream.interpolatePitch(i, oldSampleRate, newSampleRate); err != nil {
+		for (s.oldRatePosition+1)*newSampleRate > s.newRatePosition*oldSampleRate {
+			if err := s.interpolatePitch(i, oldSampleRate, newSampleRate); err != nil {
 				return err
 			}
 		}
-		stream.oldRatePosition++
+		s.oldRatePosition++
 	}
 
-	return stream.pitchBuffer.DropSlice(blen)
+	return s.pitchBuffer.DropSlice(blen)
 }
 
 // interpolatePitch interpolates along pitch period
-func (stream *Stream) interpolatePitch(i, old, new int) error {
-	cur, _ := stream.outputBuffer.WriteEmpty(1)
-	for c := 0; c < stream.numChannels; c++ {
-		value := stream.interpolatePitchValue(i, c, old, new)
-		stream.outputBuffer.SetChannel(cur, c, value)
+func (s *Sonic) interpolatePitch(i, old, new int) error {
+	cur, _ := s.outputBuffer.WriteEmpty(1)
+	for c := 0; c < s.numChannels; c++ {
+		value := s.interpolatePitchValue(i, c, old, new)
+		s.outputBuffer.SetChannel(cur, c, value)
 	}
-	stream.newRatePosition++
+	s.newRatePosition++
 	return nil
 }
 
 // interpolatePitchValue interpolates the new output sample.
-func (stream *Stream) interpolatePitchValue(n, c, old, new int) int16 {
+func (s *Sonic) interpolatePitchValue(n, c, old, new int) int16 {
 	var overflowCount, total int
-	position := stream.newRatePosition * old
-	leftPosition := stream.oldRatePosition * new
-	rightPosition := (stream.oldRatePosition + 1) * new
+	position := s.newRatePosition * old
+	leftPosition := s.oldRatePosition * new
+	rightPosition := (s.oldRatePosition + 1) * new
 	ratio := rightPosition - position - 1
 	width := rightPosition - leftPosition
 
 	for i := n; i < n+SincFilterPoints; i++ {
 		weight := findSincCoefficient(i-n, ratio, width)
-		chvalue, _ := stream.pitchBuffer.GetChannel(i, c)
+		chvalue, _ := s.pitchBuffer.GetChannel(i, c)
 		value := int(chvalue) * weight
 		oldSign := getSign(total)
 		total += value
@@ -507,46 +507,46 @@ func getSign(value int) int {
 }
 
 // changeSpeed changes speed of the stream
-func (stream *Stream) changeSpeed(speed float64) error {
-	if stream.inputSamplesLen() < stream.maxRequired {
+func (s *Sonic) changeSpeed(speed float64) error {
+	if s.inputSamplesLen() < s.maxRequired {
 		return nil
 	}
 
-	playtime := stream.inputPlaytime
-	samplesNum := stream.inputBuffer.Len()
+	playtime := s.inputPlaytime
+	samplesNum := s.inputBuffer.Len()
 
 	var period, newSamples int
 	var err error
 	for {
-		if (speed > 1 && speed < 2 && stream.timeError < 0) || (speed < 1 && speed > 0.5 && stream.timeError > 0) {
+		if (speed > 1 && speed < 2 && s.timeError < 0) || (speed < 1 && speed > 0.5 && s.timeError > 0) {
 			// Deal with the case where PICOLA is still copying input samples to
 			// output unmodified,
-			if err := stream.moveUnmodifiedSamples(speed); err != nil {
+			if err := s.moveUnmodifiedSamples(speed); err != nil {
 				return err
 			}
 		} else {
 			// We are in the remaining cases, either inserting/removing a pitch period
 			// for speed < 2.0X, or a portion of one for speed >= 2.0X.
-			period, err = stream.findPitchPeriod(true)
+			period, err = s.findPitchPeriod(true)
 			if err != nil {
 				return err
 			}
 
 			if speed > 1 {
-				newSamples, err = stream.skipPitchPeriod(speed, period)
+				newSamples, err = s.skipPitchPeriod(speed, period)
 				if err != nil {
 					return err
 				}
 				if speed < 2 {
-					stream.timeError += float64(newSamples)*stream.samplePeriod - float64(period+newSamples)*playtime/float64(samplesNum)
+					s.timeError += float64(newSamples)*s.samplePeriod - float64(period+newSamples)*playtime/float64(samplesNum)
 				}
 			} else {
-				newSamples, err = stream.insertPitchPeriod(speed, period)
+				newSamples, err = s.insertPitchPeriod(speed, period)
 				if err != nil {
 					return err
 				}
 				if speed > 0.5 {
-					stream.timeError += float64(period+newSamples)*stream.samplePeriod - float64(newSamples)*playtime/float64(samplesNum)
+					s.timeError += float64(period+newSamples)*s.samplePeriod - float64(newSamples)*playtime/float64(samplesNum)
 				}
 			}
 		}
@@ -555,17 +555,17 @@ func (stream *Stream) changeSpeed(speed float64) error {
 			return nil
 		}
 
-		if stream.inputSamplesLen() < stream.maxRequired {
+		if s.inputSamplesLen() < s.maxRequired {
 			break
 		}
 	}
 
-	stream.inputPlaytime = (playtime * float64(stream.inputBuffer.Len())) / float64(samplesNum)
+	s.inputPlaytime = (playtime * float64(s.inputBuffer.Len())) / float64(samplesNum)
 	return nil
 }
 
 // skipPitchPeriod skips over a pitch period.  Returns the number of output samples.
-func (stream *Stream) skipPitchPeriod(speed float64, period int) (int, error) {
+func (s *Sonic) skipPitchPeriod(speed float64, period int) (int, error) {
 	var newSamples int
 	if speed >= 2.0 {
 		/* For speeds >= 2.0, we skip over a portion of each pitch period rather
@@ -574,17 +574,17 @@ func (stream *Stream) skipPitchPeriod(speed float64, period int) (int, error) {
 	} else {
 		newSamples = period
 	}
-	if err := stream.overlapAdd(newSamples, period); err != nil {
+	if err := s.overlapAdd(newSamples, period); err != nil {
 		return 0, err
 	}
-	if err := stream.inputBuffer.DropSlice(newSamples + period); err != nil {
+	if err := s.inputBuffer.DropSlice(newSamples + period); err != nil {
 		return 0, err
 	}
 	return newSamples, nil
 }
 
 // insertPitchPeriod inserts a pitch period, and determines how much input to copy directly.
-func (stream *Stream) insertPitchPeriod(speed float64, period int) (int, error) {
+func (s *Sonic) insertPitchPeriod(speed float64, period int) (int, error) {
 	var newSamples int
 	if speed <= 0.5 {
 		newSamples = int(float64(period) * speed / (1.0 - speed))
@@ -592,13 +592,13 @@ func (stream *Stream) insertPitchPeriod(speed float64, period int) (int, error) 
 		newSamples = period
 	}
 
-	if err := stream.inputBuffer.CopyTo(stream.outputBuffer, period); err != nil {
+	if err := s.inputBuffer.CopyTo(s.outputBuffer, period); err != nil {
 		return 0, err
 	}
-	if err := stream.overlapAdd(newSamples, period); err != nil {
+	if err := s.overlapAdd(newSamples, period); err != nil {
 		return 0, err
 	}
-	if err := stream.inputBuffer.DropSlice(newSamples); err != nil {
+	if err := s.inputBuffer.DropSlice(newSamples); err != nil {
 		return 0, err
 	}
 	return newSamples, nil
@@ -606,69 +606,69 @@ func (stream *Stream) insertPitchPeriod(speed float64, period int) (int, error) 
 
 // overlapAdd overlaps two sound segments, ramp the volume of one down, while ramping the
 // other one from zero up, and add them, storing the result at the output.
-func (stream *Stream) overlapAdd(numSamples int, period int) error {
-	cur, _ := stream.outputBuffer.WriteEmpty(numSamples)
+func (s *Sonic) overlapAdd(numSamples int, period int) error {
+	cur, _ := s.outputBuffer.WriteEmpty(numSamples)
 
 	for i := 0; i < numSamples; i++ {
-		for c := 0; c < stream.numChannels; c++ {
-			dv, _ := stream.inputBuffer.GetChannel(i, c)
-			uv, _ := stream.inputBuffer.GetChannel(i+period, c)
+		for c := 0; c < s.numChannels; c++ {
+			dv, _ := s.inputBuffer.GetChannel(i, c)
+			uv, _ := s.inputBuffer.GetChannel(i+period, c)
 
 			if UseSinOverlap == true {
 				ratio := math.Sin(float64(i) * math.Pi / (2 * float64(numSamples)))
-				stream.outputBuffer.SetChannel(cur+i, c, int16(float64(dv)*(1.0-ratio)+float64(uv)*ratio))
+				s.outputBuffer.SetChannel(cur+i, c, int16(float64(dv)*(1.0-ratio)+float64(uv)*ratio))
 			} else {
-				stream.outputBuffer.SetChannel(cur+i, c, int16((int(dv)*(numSamples-i)+int(uv)*i)/numSamples))
+				s.outputBuffer.SetChannel(cur+i, c, int16((int(dv)*(numSamples-i)+int(uv)*i)/numSamples))
 			}
 		}
 	}
 	return nil
 }
 
-func (stream *Stream) findPitchPeriod(preferNewPeriod bool) (int, error) {
+func (s *Sonic) findPitchPeriod(preferNewPeriod bool) (int, error) {
 	var period, minDiff, maxDiff, ret int
 
-	minPeriod := stream.minPeriod
-	maxPeriod := stream.maxPeriod
-	skip := stream.computeSkip()
+	minPeriod := s.minPeriod
+	maxPeriod := s.maxPeriod
+	skip := s.computeSkip()
 
-	if stream.numChannels == 1 && skip == 1 {
-		period, minDiff, maxDiff = findPitchPeriodInRange(stream.inputBuffer, minPeriod, maxPeriod)
+	if s.numChannels == 1 && skip == 1 {
+		period, minDiff, maxDiff = findPitchPeriodInRange(s.inputBuffer, minPeriod, maxPeriod)
 	} else {
-		if err := stream.downSampleInput(skip); err != nil {
+		if err := s.downSampleInput(skip); err != nil {
 			return 0, err
 		}
-		period, minDiff, maxDiff = findPitchPeriodInRange(stream.downSampleBuffer, minPeriod/skip, maxPeriod/skip)
+		period, minDiff, maxDiff = findPitchPeriodInRange(s.downSampleBuffer, minPeriod/skip, maxPeriod/skip)
 
 		if skip != 1 {
 			period *= skip
 			minPeriod = period - (skip << 2)
 			maxPeriod = period + (skip << 2)
-			if minPeriod < stream.minPeriod {
-				minPeriod = stream.minPeriod
+			if minPeriod < s.minPeriod {
+				minPeriod = s.minPeriod
 			}
-			if maxPeriod > stream.maxPeriod {
-				maxPeriod = stream.maxPeriod
+			if maxPeriod > s.maxPeriod {
+				maxPeriod = s.maxPeriod
 			}
-			if stream.numChannels == 1 {
-				period, minDiff, maxDiff = findPitchPeriodInRange(stream.inputBuffer, minPeriod, maxPeriod)
+			if s.numChannels == 1 {
+				period, minDiff, maxDiff = findPitchPeriodInRange(s.inputBuffer, minPeriod, maxPeriod)
 			} else {
-				if err := stream.downSampleInput(1); err != nil {
+				if err := s.downSampleInput(1); err != nil {
 					return 0, err
 				}
-				period, minDiff, maxDiff = findPitchPeriodInRange(stream.downSampleBuffer, minPeriod, maxPeriod)
+				period, minDiff, maxDiff = findPitchPeriodInRange(s.downSampleBuffer, minPeriod, maxPeriod)
 			}
 		}
 	}
 
-	if stream.prevPeriodBetter(minDiff, maxDiff, preferNewPeriod) {
-		ret = stream.prevPeriod
+	if s.prevPeriodBetter(minDiff, maxDiff, preferNewPeriod) {
+		ret = s.prevPeriod
 	} else {
 		ret = period
 	}
 
-	stream.prevMinDiff = minDiff
-	stream.prevPeriod = period
+	s.prevMinDiff = minDiff
+	s.prevPeriod = period
 
 	return ret, nil
 }
@@ -676,8 +676,8 @@ func (stream *Stream) findPitchPeriod(preferNewPeriod bool) (int, error) {
 // prevPeriodBetter detects At abrupt ends of voiced words, we can have pitch periods that are better
 //
 //	approximated by the previous pitch period estimate.  Try to detect this case.
-func (stream *Stream) prevPeriodBetter(minDiff, maxDiff int, preferNewPeriod bool) bool {
-	if minDiff == 0 || stream.prevPeriod == 0 {
+func (s *Sonic) prevPeriodBetter(minDiff, maxDiff int, preferNewPeriod bool) bool {
+	if minDiff == 0 || s.prevPeriod == 0 {
 		return false
 	}
 
@@ -686,12 +686,12 @@ func (stream *Stream) prevPeriodBetter(minDiff, maxDiff int, preferNewPeriod boo
 			/* Got a reasonable match this period */
 			return false
 		}
-		if minDiff*2 <= stream.prevMinDiff*3 {
+		if minDiff*2 <= s.prevMinDiff*3 {
 			/* Mismatch is not that much greater this period */
 			return false
 		}
 	} else {
-		if minDiff <= stream.prevMinDiff {
+		if minDiff <= s.prevMinDiff {
 			return false
 		}
 	}
@@ -701,18 +701,18 @@ func (stream *Stream) prevPeriodBetter(minDiff, maxDiff int, preferNewPeriod boo
 // downSampleInput downsamples inputBuffer:
 // If skip is greater than one, average skip samples together and write them to the down-sample buffer.
 // If numChannels is greater than one, mix the channels together as we down sample.
-func (stream *Stream) downSampleInput(skip int) error {
-	var n = stream.maxRequired / skip
-	stream.downSampleBuffer.Truncate(0)
+func (s *Sonic) downSampleInput(skip int) error {
+	var n = s.maxRequired / skip
+	s.downSampleBuffer.Truncate(0)
 
-	buf, err := stream.inputBuffer.GetSlice(stream.maxRequired)
+	buf, err := s.inputBuffer.GetSlice(s.maxRequired)
 	if err != nil {
 		return err
 	}
 
-	// _ = buf[stream.maxRequired]
+	// _ = buf[s.maxRequired]
 
-	skipCh := skip * stream.numChannels
+	skipCh := skip * s.numChannels
 
 	ii := 0
 	for i := 0; i < n; i++ {
@@ -723,7 +723,7 @@ func (stream *Stream) downSampleInput(skip int) error {
 		}
 		v /= skipCh
 
-		_ = stream.downSampleBuffer.Write(int16(v))
+		_ = s.downSampleBuffer.Write(int16(v))
 	}
 	return nil
 }
@@ -738,62 +738,49 @@ func findPitchPeriodInRange(b *SampleBuffer, minP, maxP int) (int, int, int) {
 
 // Flush forces the sonic stream to generate output using whatever data it currently has.
 // No extra delay will be added to the output, but flushing in the middle of words could introduce distortion.
-func (stream *Stream) Flush() error {
-	maxReq := stream.maxRequired
-	speed := stream.speed / stream.pitch
-	rate := stream.rate * stream.pitch
-	expOutput := stream.outputBuffer.Len() + int(math.Round((float64(stream.inputBuffer.Len())/speed+float64(stream.pitchBuffer.Len()))/rate+0.5))
+func (s *Sonic) Flush() error {
+	maxReq := s.maxRequired
+	speed := s.speed / s.pitch
+	rate := s.rate * s.pitch
+	expOutput := s.outputBuffer.Len() + int(math.Round((float64(s.inputBuffer.Len())/speed+float64(s.pitchBuffer.Len()))/rate+0.5))
 
-	if err := stream.AddEmptySamples(2 * maxReq * stream.numChannels); err != nil {
+	if err := s.AddEmptySamples(2 * maxReq * s.numChannels); err != nil {
 		return err
 	}
 
-	if err := stream.processStreamInput(); err != nil {
+	if err := s.processStreamInput(); err != nil {
 		return err
 	}
 
-	if stream.outputBuffer.Len() > expOutput {
-		stream.outputBuffer.Truncate(expOutput)
+	if s.outputBuffer.Len() > expOutput {
+		s.outputBuffer.Truncate(expOutput)
 	}
 
-	stream.inputPlaytime = 0
-	stream.timeError = 0
+	s.inputPlaytime = 0
+	s.timeError = 0
 
-	return nil
-}
-
-// AddSamples adds int16 samples to the inputBuffer
-func (stream *Stream) AddSamples(samples []int16) error {
-	if err := stream.inputBuffer.AddSamples(samples); err != nil {
-		return err
-	}
-	stream.inputPlaytime = float64(stream.inputSamplesLen()) * stream.samplePeriod / (stream.speed / stream.pitch)
-	return nil
-}
-
-// AddSamples coverts float64 samples to the int16 samples and add them to the inputBuffer
-func (stream *Stream) AddFloatSamples(samples []float64) error {
-	if err := stream.inputBuffer.AddFloatSamples(samples); err != nil {
-		return err
-	}
-	stream.inputPlaytime = float64(stream.inputSamplesLen()) * stream.samplePeriod / (stream.speed / stream.pitch)
-	return nil
-}
-
-// AddSamples coverts uint8 samples to the int16 samples and add them to the inputBuffer
-func (stream *Stream) AddByteSamples(samples []uint8) error {
-	if err := stream.inputBuffer.AddByteSamples(samples); err != nil {
-		return err
-	}
-	stream.inputPlaytime = float64(stream.inputSamplesLen()) * stream.samplePeriod / (stream.speed / stream.pitch)
 	return nil
 }
 
 // AddEmptySamples adds n empty samples to the inputBuffer
-func (stream *Stream) AddEmptySamples(n int) error {
-	if _, err := stream.inputBuffer.WriteEmpty(n); err != nil {
+func (s *Sonic) AddEmptySamples(n int) error {
+	if _, err := s.inputBuffer.WriteEmpty(n); err != nil {
 		return err
 	}
-	stream.inputPlaytime = float64(stream.inputSamplesLen()) * stream.samplePeriod / (stream.speed / stream.pitch)
+	s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
 	return nil
+}
+
+// Reset instantly resets internal state and clears all buffers
+func (s *Sonic) Reset() {
+	s.prevPeriod = 0
+	s.oldRatePosition = 0
+	s.newRatePosition = 0
+	s.timeError = 0
+	s.inputPlaytime = 0
+
+	s.inputBuffer.Reset()
+	s.outputBuffer.Reset()
+	s.downSampleBuffer.Reset()
+	s.pitchBuffer.Reset()
 }
