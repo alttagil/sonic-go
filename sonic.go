@@ -784,3 +784,14 @@ func (s *Sonic) Reset() {
 	s.downSampleBuffer.Reset()
 	s.pitchBuffer.Reset()
 }
+
+// crossFade performs a crossfade operation between `buf` and `tail`.
+// The length of `buf` must be greater than or equal to the length of `tail`.
+// It interpolates between the two slices to produce a smooth transition.
+func crossFade(buf, tail []int16) {
+	l := len(tail)
+	for i, decrV := range tail {
+		incrV := buf[i]
+		buf[i] = int16((int(decrV)*(l-i) + int(incrV)*i) / l)
+	}
+}
