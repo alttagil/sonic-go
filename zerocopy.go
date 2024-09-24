@@ -110,13 +110,13 @@ func (s *ZeroCopyStream) read(num int) ([]int16, error) {
 	if speed > 0.99999 && speed < 1.00001 && rate == 1 && s.volume == 1.0 {
 		if iLen >= samples || oLen >= samples {
 			switch {
-			case oLen == 0:
+			case oLen == 0: // if there are no sped up samples in the output queue
 				data, err = s.inputBuffer.ReadSlice(samples)
 				s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
-			case oLen >= samples:
+			case oLen > samples: // if there are enough sped up samples in output queue
 				data, err = s.outputBuffer.ReadSlice(samples)
 			default:
-				if iLen >= oLen {
+				if iLen >= oLen { // if we already have enough unprocessed samples for crossfading
 					data, err = s.inputBuffer.ReadSlice(samples)
 					odata, _ := s.outputBuffer.ReadSlice(samples)
 					crossFade(data, odata)
@@ -126,7 +126,7 @@ func (s *ZeroCopyStream) read(num int) ([]int16, error) {
 			}
 		}
 	} else {
-		if err := s.processStreamInput(); err != nil {
+		if err = s.processStreamInput(); err != nil {
 			return nil, err
 		} else if s.outputBuffer.Len() >= samples {
 			data, err = s.outputBuffer.ReadSlice(samples)
