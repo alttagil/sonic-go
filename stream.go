@@ -104,7 +104,7 @@ func (s *Stream) AddSamples(samples []int16) error {
 		return err
 	}
 	// Update internal playtime based on the number of samples and Sonic's speed/pitch settings
-	s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
+	s.updateInputPlaytime()
 	return nil
 }
 
@@ -115,7 +115,7 @@ func (s *Stream) AddFloatSamples(samples []float64) error {
 		return err
 	}
 	// Update internal playtime based on the number of samples and Sonic's speed/pitch settings
-	s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
+	s.updateInputPlaytime()
 	return nil
 }
 
@@ -126,6 +126,6 @@ func (s *Stream) AddByteSamples(samples []uint8) error {
 		return err
 	}
 	// Update internal playtime based on the number of samples and Sonic's speed/pitch settings
-	s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
+	s.updateInputPlaytime()
 	return nil
 }

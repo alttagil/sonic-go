@@ -29,7 +29,6 @@ func BenchmarkStreaming(b *testing.B) {
 	}
 
 	samplesPerFrame = sampleRate * channels * 20 / 1000
-	log.Println(sampleRate, channels)
 
 	var in [][]int16
 	for i := 0; samplesPerFrame < len(pcm)-i; i += samplesPerFrame {
@@ -37,6 +36,7 @@ func BenchmarkStreaming(b *testing.B) {
 	}
 
 	buf := make([]int16, samplesPerFrame)
+
 	b.Run("without sonic", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -59,6 +59,8 @@ func BenchmarkStreaming(b *testing.B) {
 	})
 
 	b.Run("with sonic accelerated", func(b *testing.B) {
+		var empty int
+
 		sonicStream := NewSonicStream(sampleRate, channels)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -70,11 +72,16 @@ func BenchmarkStreaming(b *testing.B) {
 				}
 				copy(data, buf) // Emulate decoding
 				sonicStream.Write(buf)
+
 				if sonicStream.NumOutputSamples() >= samplesPerFrame {
 					sonicStream.ReadTo(buf)
+				} else {
+					empty++
 				}
 			}
 		}
+
+		log.Println(b.N, empty)
 	})
 
 	b.Run("with sonic streaming", func(b *testing.B) {
@@ -125,10 +132,12 @@ func BenchmarkStreaming(b *testing.B) {
 					b.Fatal("can't read filled frame: " + err.Error())
 				}
 
-				if len(tempAudioBuf) != 0 {
+				if len(tempAudioBuf) == 0 {
 					empty++
 				}
 			}
 		}
+
+		log.Println(b.N, empty)
 	})
 }

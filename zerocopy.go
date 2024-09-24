@@ -14,7 +14,9 @@
 
 package sonic
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type ZeroCopyStream struct {
 	*Sonic
@@ -26,7 +28,7 @@ func NewZeroCopyStream(sampleRate, numChannels int) *ZeroCopyStream {
 	return &ZeroCopyStream{NewSonic(sampleRate, numChannels)}
 }
 
-// Process processes a specified number of bytes (`size`) from the Sonic buffer.
+// Process processes a specified number of `samples` (`numChannels` * `samples` bytes) from the Sonic buffer.
 // It borrows a buffer slice from Sonic internal inputBuffer, allows external code (via function `f`)
 // to fill the buffer with decoded audio samples, and then returns the buffer for processing.
 // The function ensures the slice is returned back to the buffer and processes the samples before
@@ -47,9 +49,9 @@ func NewZeroCopyStream(sampleRate, numChannels int) *ZeroCopyStream {
 //
 // Note: The returned slice must be processed before the next Process call, as it may be overwritten
 // during subsequent processing.
-func (s *ZeroCopyStream) Process(size int, f func(buf []int16) error) ([]int16, error) {
+func (s *ZeroCopyStream) Process(samples int, f func(buf []int16) error) ([]int16, error) {
 	// Borrow a buffer slice from the Sonic input buffer
-	tempAudioBuf := s.borrowRawSlice(size)
+	tempAudioBuf := s.borrowRawSlice(samples)
 
 	// Call the provided function to fill the buffer with audio samples
 	if err := f(tempAudioBuf); err != nil {
@@ -62,7 +64,7 @@ func (s *ZeroCopyStream) Process(size int, f func(buf []int16) error) ([]int16, 
 	}
 
 	// Borrows buffer from Sonic input buffer (if no changes made to the input data) or from output buffer
-	data, err := s.read(size)
+	data, err := s.processAndRead(samples)
 	if err != nil {
 		return nil, fmt.Errorf("s reading: %w", err)
 	}
@@ -86,7 +88,7 @@ func (s *ZeroCopyStream) returnRawSlice(slice []int16) error {
 	if err := s.inputBuffer.RawLenAdd(samples); err != nil {
 		return err
 	}
-	s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
+	s.updateInputPlaytime()
 	return nil
 }
 
@@ -95,55 +97,45 @@ func (s *ZeroCopyStream) returnRawSlice(slice []int16) error {
 // If changes are required, it processes the audio from the input buffer to the output buffer and returns
 // a slice from the output buffer.
 // if there are no enough data in the buffers processAndRead returns nil slice and nil error
-func (s *ZeroCopyStream) processAndRead(num int) ([]int16, error) {
-	var data []int16
-	var err error
-
-	samples := num / s.numChannels
+func (s *ZeroCopyStream) processAndRead(samples int) (data []int16, err error) {
 	if samples == 0 {
-		return data, err
+		return
 	}
 
-	iLen := s.inputBuffer.Len()
-	oLen := s.outputBuffer.Len()
+	if s.speed == 1.0 && s.erate == 1.0 && s.volume == 1.0 {
+		iLen := s.inputBuffer.Len()
+		oLen := s.outputBuffer.Len()
 
-	rate := s.rate * s.pitch
-	speed := float64(iLen) * s.samplePeriod / s.inputPlaytime
-
-	if speed > 0.99999 && speed < 1.00001 && rate == 1 && s.volume == 1.0 {
-		// if using only Process method there should always be enough samples in the buffers
-		if iLen >= samples || oLen >= samples {
-			switch {
-			case oLen == 0: // if there are no sped up samples in the output queue
-				data, err = s.inputBuffer.ReadSlice(samples)
-				s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
-			case oLen > samples: // if there are enough sped up samples in the output buffer
-				data, err = s.outputBuffer.ReadSlice(samples)
-			default:
-				if iLen >= oLen { // if we already have enough unprocessed samples for cross-fading
-					data, err = s.inputBuffer.ReadSlice(samples)
-					odata, _ := s.outputBuffer.ReadSlice(samples)
-					crossFade(data, odata)
-
-					s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
-				}
-			}
+		switch {
+		case iLen+oLen < samples:
+			break
+		case oLen == 0: // if there are no sped up samples in the output queue
+			data, err = s.inputBuffer.ReadSlice(samples)
+			s.updateInputPlaytime()
+		case oLen >= samples: // if there are enough sped up samples in the output buffer
+			data, err = s.outputBuffer.ReadSlice(samples)
+		default:
+			s.inputBuffer.MoveTo(s.outputBuffer, samples-oLen)
+			data, _ = s.outputBuffer.ReadSlice(samples)
+			s.updateInputPlaytime()
 		}
+
 	} else {
 		if err = s.processStreamInput(); err != nil {
-			return nil, err
+			return
 		} else if s.outputBuffer.Len() >= samples {
 			data, err = s.outputBuffer.ReadSlice(samples)
+			return
 		}
 	}
 
-	return data, err
+	return
 }
 
 // read retrieves `num` samples from the Sonic buffer by invoking the internal `processAndRead` method.
 // if there are no enough data in the buffers read returns nil slice and nil error
-func (s *ZeroCopyStream) read(num int) ([]int16, error) {
-	return s.processAndRead(num)
+func (s *ZeroCopyStream) read(samples int) ([]int16, error) {
+	return s.processAndRead(samples)
 }
 
 // readTo reads samples into the provided `to` slice. It returns the buffer filled with audio data.

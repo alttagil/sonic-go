@@ -82,10 +82,6 @@ const (
 	ShrtMax = 32767
 	// ShrtMin represents the minimum negative value for a signed 16-bit integer.
 	ShrtMin = -32768
-
-	// UseSinOverlap - set UseSinOverlap to true to use sin-wav based overlap add which in theory can improve
-	// sound quality slightly, at the expense of lots of floating point math.
-	UseSinOverlap = false
 )
 
 /*
@@ -174,7 +170,7 @@ type Sonic struct {
 	// pitchBuffer is used for pitch adjustment.
 	pitchBuffer *SampleBuffer
 
-	// downSampleBuffer is used for downsampling.
+	// downSampleBuffer is used for down-sampling.
 	downSampleBuffer *SampleBuffer
 
 	// speed is the playback speed factor.
@@ -188,6 +184,9 @@ type Sonic struct {
 
 	// rate is the playback rate adjustment factor.
 	rate float64
+
+	// erate is a calculated effective rate
+	erate float64
 
 	// samplePeriod is the duration of each output sample, calculated as 1.0 / sampleRate.
 	// It is used in accumulating inputPlaytime.
@@ -235,6 +234,10 @@ type Sonic struct {
 
 	// prevMinDiff is the previous minimum difference.
 	prevMinDiff int
+
+	// useSinOverlap - set UseSinOverlap to true to use sin-wav based overlap add which in theory can improve
+	// sound quality slightly, at the expense of lots of floating point math.
+	useSinOverlap bool
 }
 
 // NewSonicStream creates a new sonic Sonic.
@@ -267,6 +270,7 @@ func NewSonic(sampleRate, numChannels int) *Sonic {
 		pitch:   1.0,
 		volume:  1.0,
 		rate:    1.0,
+		erate:   1.0,
 		quality: false,
 
 		prevPeriod:      0,
@@ -284,6 +288,7 @@ func (s *Sonic) GetSpeed() float64 {
 // SetSpeed sets the speed of the stream.
 func (s *Sonic) SetSpeed(speed float64) {
 	s.speed = speed
+	s.updateInputPlaytime()
 }
 
 // GetVolume returns the scaling factor of the stream.
@@ -304,6 +309,7 @@ func (s *Sonic) GetPitch() float64 {
 // SetPitch sets the pitch of the stream.
 func (s *Sonic) SetPitch(pitch float64) {
 	s.pitch = pitch
+	s.erate = s.rate * pitch
 }
 
 // GetRate returns the rate of the stream.
@@ -324,6 +330,7 @@ func (s *Sonic) GetNumChannels() int {
 // SetRate sets the playback rate of the stream. This scales pitch and speed at the same time.
 func (s *Sonic) SetRate(rate float64) {
 	s.rate = rate
+	s.erate = rate * s.pitch
 	s.oldRatePosition = 0
 	s.newRatePosition = 0
 }
@@ -336,6 +343,18 @@ func (s *Sonic) GetQuality() bool {
 // SetQuality sets the "quality". Default false is virtually as good as true, but very much faster.
 func (s *Sonic) SetQuality(quality bool) {
 	s.quality = quality
+}
+
+// GetUseSinOverlap returns useSinOverlap value.
+func (s *Sonic) GetUseSinOverlap() bool {
+	return s.useSinOverlap
+}
+
+// SetUseSinOverlap sets the "useSinOverlap".
+// Set UseSinOverlap to true to use sin-wav based overlap add which in theory can improve
+// sound quality slightly, at the expense of lots of floating point math.
+func (s *Sonic) SetUseSinOverlap(useSinOverlap bool) {
+	s.useSinOverlap = useSinOverlap
 }
 
 // computeSkip computes the number of samples to skip to down-sample the input.
@@ -358,7 +377,7 @@ func (s *Sonic) moveInputToOutput() error {
 	return s.inputBuffer.MoveAllTo(s.outputBuffer)
 }
 
-// moveInputToOutput moves samples sohould be left unmodified from inputBuffer to outputBuffer
+// moveUnmodifiedSamples moves samples should be left unmodified from inputBuffer to outputBuffer
 func (s *Sonic) moveUnmodifiedSamples(speed float64) error {
 	inputToCopyFloat := math.Round(1 - s.timeError*speed/(s.samplePeriod*(speed-1.0)))
 	inputToCopy := int(inputToCopyFloat)
@@ -375,7 +394,7 @@ func (s *Sonic) moveUnmodifiedSamples(speed float64) error {
 	return err
 }
 
-// processStreamInput proccesses inputBuffer sampled changing its speed, rate, pitch, volume
+// processStreamInput processes inputBuffer sampled changing its speed, rate, pitch, volume
 func (s *Sonic) processStreamInput() error {
 	InputLen := s.inputBuffer.Len()
 	if InputLen == 0 {
@@ -383,8 +402,6 @@ func (s *Sonic) processStreamInput() error {
 	}
 
 	OutputLen := s.outputBuffer.Len()
-
-	rate := s.rate * s.pitch
 	speed := float64(InputLen) * s.samplePeriod / s.inputPlaytime
 
 	if speed > 1.00001 || speed < 0.99999 {
@@ -397,12 +414,12 @@ func (s *Sonic) processStreamInput() error {
 		}
 	}
 
-	if rate != 1.0 && OutputLen < s.outputBuffer.Len() {
+	if s.erate != 1.0 && OutputLen < s.outputBuffer.Len() {
 		slice, err := s.outputBuffer.ReadSliceAt(OutputLen)
 		if err != nil {
 			return err
 		}
-		if err := s.adjustRate(rate, slice); err != nil {
+		if err := s.adjustRate(s.erate, slice); err != nil {
 			return err
 		}
 	}
@@ -614,7 +631,7 @@ func (s *Sonic) overlapAdd(numSamples int, period int) error {
 			dv, _ := s.inputBuffer.GetChannel(i, c)
 			uv, _ := s.inputBuffer.GetChannel(i+period, c)
 
-			if UseSinOverlap == true {
+			if s.useSinOverlap == true {
 				ratio := math.Sin(float64(i) * math.Pi / (2 * float64(numSamples)))
 				s.outputBuffer.SetChannel(cur+i, c, int16(float64(dv)*(1.0-ratio)+float64(uv)*ratio))
 			} else {
@@ -698,7 +715,7 @@ func (s *Sonic) prevPeriodBetter(minDiff, maxDiff int, preferNewPeriod bool) boo
 	return true
 }
 
-// downSampleInput downsamples inputBuffer:
+// downSampleInput down-samples inputBuffer:
 // If skip is greater than one, average skip samples together and write them to the down-sample buffer.
 // If numChannels is greater than one, mix the channels together as we down sample.
 func (s *Sonic) downSampleInput(skip int) error {
@@ -741,8 +758,7 @@ func findPitchPeriodInRange(b *SampleBuffer, minP, maxP int) (int, int, int) {
 func (s *Sonic) Flush() error {
 	maxReq := s.maxRequired
 	speed := s.speed / s.pitch
-	rate := s.rate * s.pitch
-	expOutput := s.outputBuffer.Len() + int(math.Round((float64(s.inputBuffer.Len())/speed+float64(s.pitchBuffer.Len()))/rate+0.5))
+	expOutput := s.outputBuffer.Len() + int(math.Round((float64(s.inputBuffer.Len())/speed+float64(s.pitchBuffer.Len()))/s.erate+0.5))
 
 	if err := s.AddEmptySamples(2 * maxReq * s.numChannels); err != nil {
 		return err
@@ -767,7 +783,7 @@ func (s *Sonic) AddEmptySamples(n int) error {
 	if _, err := s.inputBuffer.WriteEmpty(n); err != nil {
 		return err
 	}
-	s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod / (s.speed / s.pitch)
+	s.updateInputPlaytime()
 	return nil
 }
 
@@ -785,13 +801,6 @@ func (s *Sonic) Reset() {
 	s.pitchBuffer.Reset()
 }
 
-// crossFade performs a crossfade operation between `buf` and `tail`.
-// The length of `buf` must be greater than or equal to the length of `tail`.
-// It interpolates between the two slices to produce a smooth transition.
-func crossFade(buf, tail []int16) {
-	l := len(tail)
-	for i, decrV := range tail {
-		incrV := buf[i]
-		buf[i] = int16((int(decrV)*(l-i) + int(incrV)*i) / l)
-	}
+func (s *Sonic) updateInputPlaytime() {
+	s.inputPlaytime = float64(s.inputSamplesLen()) * s.samplePeriod * s.pitch / s.speed
 }
