@@ -32,6 +32,8 @@ func NewZeroCopyStream(sampleRate, numChannels int) *ZeroCopyStream {
 // The function ensures the slice is returned back to the buffer and processes the samples before
 // providing a result for further use.
 //
+// if there are no enough data in the buffers Process returns nil slice and nil error
+//
 // Pseudocode example:
 //
 //		tempAudioBuf, err := sonic.Process(frameSize, func(buf []int16) error {
@@ -92,6 +94,7 @@ func (s *ZeroCopyStream) returnRawSlice(slice []int16) error {
 // (i.e., no speed, pitch, or volume adjustments).
 // If changes are required, it processes the audio from the input buffer to the output buffer and returns
 // a slice from the output buffer.
+// if there are no enough data in the buffers processAndRead returns nil slice and nil error
 func (s *ZeroCopyStream) processAndRead(num int) ([]int16, error) {
 	var data []int16
 	var err error
@@ -138,6 +141,7 @@ func (s *ZeroCopyStream) processAndRead(num int) ([]int16, error) {
 }
 
 // read retrieves `num` samples from the Sonic buffer by invoking the internal `processAndRead` method.
+// if there are no enough data in the buffers read returns nil slice and nil error
 func (s *ZeroCopyStream) read(num int) ([]int16, error) {
 	return s.processAndRead(num)
 }
