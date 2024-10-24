@@ -79,7 +79,7 @@ func (s *Stream) ReadTo(to []int16) ([]int16, error) {
 	if err != nil {
 		return to[:0], err
 	}
-	to = to[:len(data)-1]
+	to = to[:len(data)]
 	copy(to, data)
 
 	return to, nil

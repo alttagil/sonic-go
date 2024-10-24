@@ -15,6 +15,7 @@
 package sonic
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -50,9 +51,12 @@ func NewZeroCopyStream(sampleRate, numChannels int) *ZeroCopyStream {
 // Note: The returned slice must be processed before the next Process call, as it may be overwritten
 // during subsequent processing.
 func (s *ZeroCopyStream) Process(samples int, f func(buf []int16) error) ([]int16, error) {
+	if f == nil {
+		return nil, errors.New("nil callback function")
+	}
+
 	// Borrow a buffer slice from the Sonic input buffer
 	tempAudioBuf := s.borrowRawSlice(samples)
-
 	// Call the provided function to fill the buffer with audio samples
 	if err := f(tempAudioBuf); err != nil {
 		return nil, fmt.Errorf("function call: %w", err)

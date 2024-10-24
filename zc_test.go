@@ -15,7 +15,6 @@
 package sonic
 
 import (
-	"log"
 	"testing"
 )
 
@@ -80,8 +79,6 @@ func BenchmarkStreaming(b *testing.B) {
 				}
 			}
 		}
-
-		log.Println(b.N, empty)
 	})
 
 	b.Run("with sonic streaming", func(b *testing.B) {
@@ -137,7 +134,5 @@ func BenchmarkStreaming(b *testing.B) {
 				}
 			}
 		}
-
-		log.Println(b.N, empty)
 	})
 }
