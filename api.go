@@ -36,11 +36,11 @@ func ChangeSpeed(sampleRate, numChannels int, speed, pitch, rate, volume float64
 	if cap(samples) < len(out) {
 		samples = make([]int16, len(out))
 	} else {
-		samples = samples[:len(out)-1]
+		samples = samples[:len(out)]
 	}
 
 	n := copy(samples, out)
-	return samples[:n-1], nil
+	return samples[:n], nil
 }
 
 // ChangeFloatSpeed modifies the speed, pitch, rate, and volume of the provided float64 samples.
@@ -65,7 +65,7 @@ func ChangeFloatSpeed(sampleRate, numChannels int, speed, pitch, rate, volume fl
 	if cap(samples) < len(out) {
 		samples = make([]float64, len(out))
 	} else {
-		samples = samples[:len(out)-1]
+		samples = samples[:len(out)]
 	}
 
 	for i := 0; i <= cap(samples) && i <= len(out); i++ {
@@ -98,7 +98,7 @@ func ChangeByteSpeed(sampleRate, numChannels int, speed, pitch, rate, volume flo
 	if cap(samples) < len(out) {
 		samples = make([]uint8, len(out))
 	} else {
-		samples = samples[:len(out)-1]
+		samples = samples[:len(out)]
 	}
 
 	for i := 0; i <= cap(samples) && i <= len(out); i++ {
@@ -106,82 +106,4 @@ func ChangeByteSpeed(sampleRate, numChannels int, speed, pitch, rate, volume flo
 	}
 
 	return samples, nil
-}
-
-// Write writes int16 samples to the Stream and process data.
-// It returns any encountered error during the process.
-func (stream *Stream) Write(samples []int16) error {
-	if err := stream.AddSamples(samples); err != nil {
-		return err
-	}
-	return stream.processStreamInput()
-}
-
-// WriteFloats writes float64 samples to the Stream and process data.
-// It returns any encountered error during the process.
-func (stream *Stream) WriteFloats(samples []float64) error {
-	if err := stream.AddFloatSamples(samples); err != nil {
-		return err
-	}
-	return stream.processStreamInput()
-}
-
-// WriteBytes writes uint8 samples to the Stream and process data.
-// It returns any encountered error during the process.
-func (stream *Stream) WriteBytes(samples []uint8) error {
-	if err := stream.AddByteSamples(samples); err != nil {
-		return err
-	}
-	return stream.processStreamInput()
-}
-
-// Read reads a slice wih a len n from the outputBuffer
-func (stream *Stream) Read(n int) ([]int16, error) {
-	return stream.outputBuffer.ReadSlice(n)
-}
-
-// ReadAll flushes and returns slice with all the data in the outputBuffer
-func (stream *Stream) ReadAll() ([]int16, error) {
-	return stream.outputBuffer.Flush()
-}
-
-// ReadTo reads data from the outputBuffer to a slice
-func (stream *Stream) ReadTo(s []int16) ([]int16, error) {
-	n := cap(s) / stream.numChannels
-	if n == 0 {
-		return s[:0], nil
-	}
-
-	data, err := stream.outputBuffer.ReadSlice(n)
-	if err != nil {
-		return s[:0], err
-	}
-	s = s[:len(data)-1]
-	copy(s, data)
-
-	return s, nil
-}
-
-// NumInputSamples returns number of samples in input buffer
-func (stream *Stream) NumInputSamples() int {
-	return stream.inputBuffer.Len()
-}
-
-// NumOutputSamples returns number of samples in output buffer
-func (stream *Stream) NumOutputSamples() int {
-	return stream.outputBuffer.Len()
-}
-
-// Reset instantly resets internal state and clears all buffers
-func (stream *Stream) Reset() {
-	stream.prevPeriod = 0
-	stream.oldRatePosition = 0
-	stream.newRatePosition = 0
-	stream.timeError = 0
-	stream.inputPlaytime = 0
-
-	stream.inputBuffer.Reset()
-	stream.outputBuffer.Reset()
-	stream.downSampleBuffer.Reset()
-	stream.pitchBuffer.Reset()
 }

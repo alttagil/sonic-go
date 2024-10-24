@@ -105,6 +105,32 @@ func (b *Buffer[T]) isEmpty() bool {
 	return len(b.buf) <= b.off
 }
 
+// RawSlice (EXPERIMENTAL) returns slice from a buffer without counter changes
+func (b *Buffer[T]) RawSlice(n int) []T {
+	if b.isEmpty() {
+		b.Reset()
+	}
+	_, ok := b.tryGrowByReslice(n)
+	if !ok {
+		b.grow(n)
+	}
+	l := len(b.buf)
+
+	ret := b.buf[l-n:l:l]
+	b.buf = b.buf[:l-n]
+
+	return ret
+}
+
+// RawLenAdd (EXPERIMENTAL) changes internal counters as if n elements were added to a buffer
+func (b *Buffer[T]) RawLenAdd(n int) error {
+	_, ok := b.tryGrowByReslice(n)
+	if !ok {
+		return errors.New("media.Buffer: RawLenAdd is out of range")
+	}
+	return nil
+}
+
 // Truncate discards all but the first n unread elements from the buffer.
 func (b *Buffer[T]) Truncate(n int) {
 	if n == 0 {

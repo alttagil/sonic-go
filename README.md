@@ -51,18 +51,80 @@ func main() {
 	readAndProcess(stream)
 }
 
-var processedData = make([]int16, SomeLen)
-
 func readAndProcess(stream *sonic.Stream) {
 	for {
 		processedData, err := stream.ReadTo(processedData)
-		if err != nil {
+		if err != nil || len(processedData) == 0 {
 			break
 		}
 
 		// Simulated usage of processed data (replace with your actual usage)
 		fmt.Println("Processed Data:", processedData)
 	}
+}
+```
+
+### Zero-Copy Streaming Mode
+In zero-copy streaming mode, you process input data directly by borrowing a buffer, allowing for more efficient memory handling. Here's an example:
+
+```go
+package main
+
+import (
+  "fmt"
+  "github.com/alttagil/sonic-go"
+)
+
+func main() {
+    frameSize = 960
+	
+	stream := sonic.NewZeroCopyStream(44100, 2)  // Replace with your desired sample rate and number of channels
+	stream.SetSpeed(1.5)
+	
+	// Simulates processing loop
+	for {
+      // Process input data in zero-copy mode and get the processed buffer
+      tempAudioBuf, err := stream.Process(frameSize, prepareSamples)
+      if err != nil {
+        log.Fatalf("Error processing audio: %v", err)
+      }
+	  
+      // Use the returned buffer for further processing (e.g., encoding)
+      processSamples(tempAudioBuf)
+	}
+	
+    if err := stream.Flush(); err != nil {
+       log.Fatalln(err)
+    }
+
+    tempAudioBuf, err := stream.Process(frameSize, noop)
+    if err != nil {
+      log.Fatalf("Error processing audio: %v", err)
+    }
+    processSamples(tempAudioBuf)
+}
+
+func prepareSamples(buf []int16) error {
+    inputData, err := GetInputDataSomewhere()
+	if err != nil {
+        return err
+	}
+	// Simulate decoding of input data into the borrowed buffer
+    copy(buf, inputData)
+    return nil
+}
+
+func noop(buf []int16) error {
+	return nil
+}
+
+func processSamples(samples []int16) {
+	if len(samples) == 0 {
+		return
+	}
+
+    // Simulated usage of samples data (replace with your actual usage)
+    fmt.Println("Processed Data:", samples)
 }
 ```
 
