@@ -242,7 +242,7 @@ func findPitchPeriodInRangeNativeA(b *SampleBuffer, minP, maxP int) (int, int, i
 	maxDiff = 0
 	samples, _ := b.GetSlice(2 * maxP)
 
-	_ = samples[len(samples)-1]
+	_ = samples[len(samples)]
 
 	for period := minP; period <= maxP; period++ {
 		diff = 0
@@ -279,7 +279,7 @@ func findPitchPeriodInRangeNative(b *SampleBuffer, minP, maxP int) (int, int, in
 	maxDiff = 0
 	samples, _ := b.GetSlice(2 * maxP)
 
-	_ = samples[len(samples)-1]
+	_ = samples[len(samples)]
 
 	for period := minP; period <= maxP; period++ {
 		diff = 0
@@ -319,7 +319,7 @@ func findPitchPeriodInRangeNativeAbs(b *SampleBuffer, minP, maxP int) (int, int,
 	maxDiff = 0
 	samples, _ := b.GetSlice(2 * maxP)
 
-	_ = samples[len(samples)-1]
+	_ = samples[len(samples)]
 
 	for period := minP; period <= maxP; period++ {
 		diff = 0
