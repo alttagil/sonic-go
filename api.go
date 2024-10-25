@@ -38,9 +38,9 @@ func ChangeSpeed(sampleRate, numChannels int, speed, pitch, rate, volume float64
 	} else {
 		samples = samples[:len(out)]
 	}
+	copy(samples, out)
 
-	n := copy(samples, out)
-	return samples[:n], nil
+	return samples, nil
 }
 
 // ChangeFloatSpeed modifies the speed, pitch, rate, and volume of the provided float64 samples.
