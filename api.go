@@ -36,11 +36,11 @@ func ChangeSpeed(sampleRate, numChannels int, speed, pitch, rate, volume float64
 	if cap(samples) < len(out) {
 		samples = make([]int16, len(out))
 	} else {
-		samples = samples[:len(out)-1]
+		samples = samples[:len(out)]
 	}
+	copy(samples, out)
 
-	n := copy(samples, out)
-	return samples[:n-1], nil
+	return samples, nil
 }
 
 // ChangeFloatSpeed modifies the speed, pitch, rate, and volume of the provided float64 samples.
@@ -65,7 +65,7 @@ func ChangeFloatSpeed(sampleRate, numChannels int, speed, pitch, rate, volume fl
 	if cap(samples) < len(out) {
 		samples = make([]float64, len(out))
 	} else {
-		samples = samples[:len(out)-1]
+		samples = samples[:len(out)]
 	}
 
 	for i := 0; i <= cap(samples) && i <= len(out); i++ {
@@ -98,7 +98,7 @@ func ChangeByteSpeed(sampleRate, numChannels int, speed, pitch, rate, volume flo
 	if cap(samples) < len(out) {
 		samples = make([]uint8, len(out))
 	} else {
-		samples = samples[:len(out)-1]
+		samples = samples[:len(out)]
 	}
 
 	for i := 0; i <= cap(samples) && i <= len(out); i++ {
@@ -156,7 +156,7 @@ func (stream *Stream) ReadTo(s []int16) ([]int16, error) {
 	if err != nil {
 		return s[:0], err
 	}
-	s = s[:len(data)-1]
+	s = s[:len(data)]
 	copy(s, data)
 
 	return s, nil
